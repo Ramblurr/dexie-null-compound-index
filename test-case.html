@@ -30,76 +30,76 @@
       }
       const DB_NAME = 'FriendDatabase';
       function setupTestCase() {
+        console.log("deleting existing db");
         return Dexie.delete(DB_NAME);
       }
       function runTestCase() {
 
         // 1. open database connection
+        console.log("creating dexie");
         const db = new Dexie(DB_NAME);
 
         // 2. define version that includes a compound key
+        console.log("configuring database");
         db.version(1).stores({
           friends: "++id,name,age,shoeSize,[age+shoeSize]"
         });
 
-        db.open().catch((e) => {
-          // this shouldn't occur in the test case
-          console.error("Unexpected error opening DB", e);
-          unknown();
-        });
-
-        // 3. start a transaction
-        db.transaction('rw', db.friends, () => {
-          console.log('transaction started');
-          const p0 = db.friends.clear();
-          // sanity check: adding a record with all fields. works.
-          const p1 = db.friends.add({ name: "Josephine", age: 21, shoeSize: 10 });
-
-          // the main show: add a record, where a compound key path value is null
-          // in this case the value of shoeSize is null
-          // in Safari >= 10.1 this throws an exception and closes the connection
-          const p2 = db.friends.add({ name: "Mark", age: 29, shoeSize: null });
-          return Dexie.Promise.all([p0, p1, p2]);
-        }).then(() => {
-          console.log('transaction finished');
-          return db.friends.where('age').between(20, 30).sortBy('name');
-        }).then((friends) => {
-          console.log('verifying data');
-          console.log(friends);
-          assert(friends.length == 2, "only two records must be returned");
-
-          const josephine = friends[0];
-          const mark      = friends[1];
-          assert(josephine.shoeSize === 10, "josephine's shoe size must be 10");
-          assert(mark.shoeSize === null, "mark's shoe size must be null");
-
-          pass();
-        }).catch((e) => {
-          console.log(`ERROR OCCURRED: '${e.name}' '${e.message}'`);
-
-          // at this point the DB is in an unusable state, even though it is reported as open
-          console.log(`the db thinks it is ${db.isOpen() ? 'open' : 'closed'}`);
-
-          // any further attempts to touch the database will result in exceptions
-          // here is an example, we will attempt to open a transaction
+        console.log("opening database");
+        db.open()
+          .catch((e) => {
+            // this shouldn't occur in the test case
+            console.error("Unexpected error opening DB", e);
+            unknown();
+          }).then(() => {
+          // 3. start a transaction
           db.transaction('rw', db.friends, () => {
-            // this never gets called
-           console.log('you will never see me');
-          }).catch((e2) => {
-            console.log('the db failed to open a transaction after the first error');
-            console.error('second error', e);
+            console.log('transaction started');
+            const p0 = db.friends.clear();
+            // sanity check: adding a record with all fields. works.
+            const p1 = db.friends.add({ name: "Josephine", age: 21, shoeSize: 10 });
+
+            // the main show: add a record, where a compound key path value is null
+            // in this case the value of shoeSize is null
+            // in Safari >= 10.1 this throws an exception and closes the connection
+            const p2 = db.friends.add({ name: "Mark", age: 29, shoeSize: null });
+            return Dexie.Promise.all([p0, p1, p2]);
+          }).then(() => {
+            console.log('transaction finished');
+            return db.friends.where('age').between(20, 30).sortBy('name');
+          }).then((friends) => {
+            console.log('verifying data');
+            console.log(friends);
+            assert(friends.length == 2, "only two records must be returned");
+
+            const josephine = friends[0];
+            const mark      = friends[1];
+            assert(josephine.shoeSize === 10, "josephine's shoe size must be 10");
+            assert(mark.shoeSize === null, "mark's shoe size must be null");
+
+            pass();
+          }).catch((e) => {
+            console.log(`ERROR OCCURRED: '${e.name}' '${e.message}'`);
+
+            // at this point the DB is in an unusable state, even though it is reported as open
+            console.log(`the db thinks it is ${db.isOpen() ? 'open' : 'closed'}`);
+
+            // any further attempts to touch the database will result in exceptions
+            // here is an example, we will attempt to open a transaction
+            db.transaction('rw', db.friends, () => {
+              // this never gets called
+              console.log('you will never see me');
+            }).catch((e2) => {
+              console.log('the db failed to open a transaction after the first error');
+              console.error('second error', e);
+            });
+            console.error('first error', e);
+            fail();
           });
-          console.error('first error', e);
-          fail();
         });
       }
 
-      setupTestCase()
-        .then(runTestCase)
-        .catch((e) => {
-          console.error(e);
-          unknown();
-      });
+      setupTestCase().then(runTestCase);
     </script>
     <style>
       .pass {
